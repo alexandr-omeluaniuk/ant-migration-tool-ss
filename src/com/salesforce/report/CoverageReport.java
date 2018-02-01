@@ -24,11 +24,18 @@
 package com.salesforce.report;
 
 import com.sforce.soap.apex.CodeCoverageResult;
+import com.sforce.soap.apex.RunTestFailure;
+import com.sforce.soap.apex.RunTestSuccess;
 import com.sforce.soap.apex.RunTestsResult;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Task;
@@ -39,8 +46,6 @@ import org.apache.tools.ant.types.LogLevel;
  * @author ss
  */
 public class CoverageReport {
-    /** Coverage limit. */
-    private static final float COVERAGE_LIMIT = 75;
     /** Tests result. */
     private final RunTestsResult result;
     /** Project src directory. */
@@ -62,7 +67,7 @@ public class CoverageReport {
     public void createReport() throws BuildException {
         try {
             StringBuilder sb = new StringBuilder();
-            Set<String> classes = getProjectClasses();
+            Set<String> classes = getProjectClassesAndTriggers();
             appendStyle(sb);
             appendTable(sb, classes);
             try (FileOutputStream fos = new FileOutputStream(
@@ -86,54 +91,90 @@ public class CoverageReport {
     }
     private void appendTable(final StringBuilder sb,
             final Set<String> classes) {
-        sb.append("<table>");
-            sb.append("<thead>");
-                sb.append("<th>").append("Class name").append("</th>");
-                sb.append("<th>").append("Coverage lines").append("</th>");
-                sb.append("<th>").append("Coverage percent").append("</th>");
-            sb.append("</thead>");
-            sb.append("</tbody>");
-                CodeCoverageResult[] coverageResult = result.getCodeCoverage();
-                for (CodeCoverageResult ccr : coverageResult) {
-                    task.log("coverage name [" + ccr.getName() + "]",
-                            LogLevel.DEBUG.getLevel());
-                    if (!classes.contains(ccr.getName())) {
-                        continue;
-                    }
-                    int coveredLines = ccr.getNumLocations()
-                            - ccr.getNumLocationsNotCovered();
-                    float percent = (((float) coveredLines)
-                            / ((float) ccr.getNumLocations())) * 100;
-                    String percentClass = percent > COVERAGE_LIMIT
-                            ? "coverage-high" : "coverage-low";
-                    sb.append("<tr>");
-                    sb.append("<td>").append(ccr.getName()).append("</td>");
-                    sb.append("<td class=\"lines-col ").append(percentClass)
-                            .append("\">")
-                            .append(coveredLines)
-                            .append(" / ").append(ccr.getNumLocations())
-                            .append("</td>");
-                    sb.append("<td class=\"percent-col ").append(percentClass)
-                            .append("\">")
-                            .append(String.format("%.1f", percent))
-                            .append("</td>");
-                    sb.append("</tr>");
-                }
-            sb.append("</tbody>");
-        sb.append("</table>");
+        RunTestFailure[] failTests = result.getFailures();
+        Map<String, RunTestFailure> failMap = new HashMap<>();
+        for (RunTestFailure fail : failTests) {
+            failMap.put(fail.getName(), fail);
+        }
+        RunTestSuccess[] successTests = result.getSuccesses();
+        Map<String, RunTestSuccess> successMap = new HashMap<>();
+        for (RunTestSuccess success : successTests) {
+            successMap.put(success.getName(), success);
+        }
+        CodeCoverageResult[] coverageResult = result.getCodeCoverage();
+        List<CoverageElement> elements = new ArrayList<>();
+        for (CodeCoverageResult ccr : coverageResult) {
+            task.log("coverage name [" + ccr.getName() + "]",
+                    LogLevel.DEBUG.getLevel());
+            if (!classes.contains(ccr.getName())) {
+                continue;
+            }
+            CoverageElement element = new CoverageElement(ccr);
+            elements.add(element);
+        }
+        Collections.sort(elements, (CoverageElement o1, CoverageElement o2) -> {
+            return o1.getClassName().compareTo(o2.getClassName());
+        });
+        int totalLines = 0;
+        int totalCoveregeLines = 0;
+        StringBuilder table = new StringBuilder();
+        table.append("<table>");
+            table.append("<thead>");
+                table.append("<th>").append("Class name").append("</th>");
+                table.append("<th>").append("Coverage lines").append("</th>");
+                table.append("<th>").append("Coverage percent").append("</th>");
+            table.append("</thead>");
+            table.append("</tbody>");
+            for (CoverageElement el : elements) {
+                table.append(el.toHTMLRow());
+                totalLines += el.getTotalLines();
+                totalCoveregeLines += el.getCoverageLines();
+            }
+            table.append("</tbody>");
+        table.append("</table>");
+        // total table
+        float percent = (((float) totalCoveregeLines)
+                    / ((float) totalLines)) * 100;
+        StringBuilder totalTable = new StringBuilder();
+        totalTable.append("<table class=\"total-table\">");
+            totalTable.append("</tbody>");
+            totalTable.append("<tr>");
+                totalTable.append("<td>").append("<b>Total</b> (fail: ")
+                        .append(failTests.length)
+                        .append(", success: ").append(successTests.length)
+                        .append(")").append("</td>");
+                totalTable.append("<td class=\"total-col\">")
+                        .append(totalCoveregeLines).append("/")
+                        .append(totalLines).append("</td>");
+                totalTable.append("<td class=\"total-col\">")
+                        .append(String.format("%.1f", percent))
+                        .append("</td>");
+            totalTable.append("</tr>");
+            totalTable.append("</tbody>");
+        totalTable.append("</table>");
+        sb.append(totalTable);
+        sb.append(table);
     }
-    private Set<String> getProjectClasses() {
+    private Set<String> getProjectClassesAndTriggers() {
         Set<String> classes = new HashSet<>();
         File classesDir = new File(srcDir, "classes");
-        if (!classesDir.exists()) {
-            throw new BuildException("classes directory not found! Actual path"
-                    + " [" + classesDir.getAbsolutePath() + "]");
+        if (classesDir.exists()) {
+            for (File f : classesDir.listFiles()) {
+                if (f.getName().endsWith(".cls")) {
+                    task.log("add class [" + f.getName() + "]",
+                            LogLevel.DEBUG.getLevel());
+                    classes.add(f.getName().replace(".cls", ""));
+                }
+            }
         }
-        for (File f : classesDir.listFiles()) {
-            if (f.getName().endsWith(".cls")) {
-                task.log("add class [" + f.getName() + "]",
-                        LogLevel.DEBUG.getLevel());
-                classes.add(f.getName().replace(".cls", ""));
+        File triggersDir = new File(srcDir, "triggers");
+        if (triggersDir.exists()) {
+            for (File f : triggersDir.listFiles()) {
+                if (f.getName().endsWith(".trigger")) {
+                    task.log("add trigger [" + f.getName() + "]",
+                            LogLevel.DEBUG.getLevel());
+                    classes.add(f.getName().replace(".trigger", ""));
+                }
             }
         }
         task.log("classes found [" + classes.size() + "]");

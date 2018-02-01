@@ -76,29 +76,6 @@ public class TestTask extends SFDCAntTask {
             RunTestsResult result = sc.runTests(request);
             log("operation completed...");
             log("total time [" + result.getTotalTime() + "]");
-            /*log("---------------- print results -----------------------------");
-            
-            RunTestFailure[] failTests = result.getFailures();
-            RunTestSuccess[] successTests = result.getSuccesses();
-            CodeCoverageResult[] coverageResult = result.getCodeCoverage();
-            CodeCoverageWarning[] coverageWarnings = result
-                    .getCodeCoverageWarnings();
-            log("failures [" + failTests.length +"]");
-            log("successes [" + successTests.length + "]");
-            log("---------------- success -----------------------------------");
-            for (RunTestSuccess rts : successTests) {
-                log(rts.getName() + ", " + rts.getMethodName() + ", "
-                        + rts.getTime() + ", " + rts.getId());
-            }
-            log("---------------- coverage ----------------------------------");
-            for (CodeCoverageResult ccr : coverageResult) {
-                log(ccr.getName() + " | " + ccr.getId() + " | " + ccr.getType()
-                    + " | " + ccr.getNumLocations() + " | " + ccr.getNumLocationsNotCovered());
-                for (CodeLocation cl : ccr.getLocationsNotCovered()) {
-                    log(cl.getColumn() + " | " + cl.getLine() + " | "
-                            + cl.getNumExecutions() + " | " + cl.getNumExecutions());
-                }
-            }*/
             return result;
         } catch (Exception e) {
             throw new BuildException("connection problem!", e);

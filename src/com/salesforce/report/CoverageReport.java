@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Task;
 import org.apache.tools.ant.types.LogLevel;
@@ -69,7 +70,8 @@ public class CoverageReport {
             StringBuilder sb = new StringBuilder();
             Set<String> classes = getProjectClassesAndTriggers();
             appendStyle(sb);
-            appendTable(sb, classes);
+            sb.append(createClassesCoverageTable(classes));
+            sb.append(createTestClassesTable());
             try (FileOutputStream fos = new FileOutputStream(
                     new File("coverage-report.html"))) {
                 fos.write(sb.toString().getBytes("UTF-8"));
@@ -89,18 +91,8 @@ public class CoverageReport {
             sb.append("</style>");
         }
     }
-    private void appendTable(final StringBuilder sb,
-            final Set<String> classes) {
-        RunTestFailure[] failTests = result.getFailures();
-        Map<String, RunTestFailure> failMap = new HashMap<>();
-        for (RunTestFailure fail : failTests) {
-            failMap.put(fail.getName(), fail);
-        }
-        RunTestSuccess[] successTests = result.getSuccesses();
-        Map<String, RunTestSuccess> successMap = new HashMap<>();
-        for (RunTestSuccess success : successTests) {
-            successMap.put(success.getName(), success);
-        }
+    private String createClassesCoverageTable(final Set<String> classes) {
+        StringBuilder sb = new StringBuilder();
         CodeCoverageResult[] coverageResult = result.getCodeCoverage();
         List<CoverageElement> elements = new ArrayList<>();
         for (CodeCoverageResult ccr : coverageResult) {
@@ -140,8 +132,9 @@ public class CoverageReport {
             totalTable.append("</tbody>");
             totalTable.append("<tr>");
                 totalTable.append("<td>").append("<b>Total</b> (fail: ")
-                        .append(failTests.length)
-                        .append(", success: ").append(successTests.length)
+                        .append(result.getFailures().length)
+                        .append(", success: ")
+                        .append(result.getSuccesses().length)
                         .append(")").append("</td>");
                 totalTable.append("<td class=\"total-col\">")
                         .append(totalCoveregeLines).append("/")
@@ -154,6 +147,61 @@ public class CoverageReport {
         totalTable.append("</table>");
         sb.append(totalTable);
         sb.append(table);
+        return sb.toString();
+    }
+    private String createTestClassesTable() {
+        RunTestFailure[] failTests = result.getFailures();
+        Map<String, List<TestElement>> testMap = new HashMap();
+        for (RunTestFailure fail : failTests) {
+            TestElement el = new TestElement(fail);
+            if (!testMap.containsKey(fail.getName())) {
+                testMap.put(fail.getName(), new ArrayList<>());
+            }
+            testMap.get(fail.getName()).add(el);
+        }
+        RunTestSuccess[] successTests = result.getSuccesses();
+        for (RunTestSuccess success : successTests) {
+            TestElement el = new TestElement(success);
+            if (!testMap.containsKey(success.getName())) {
+                testMap.put(success.getName(), new ArrayList<>());
+            }
+            testMap.get(success.getName()).add(el);
+        }
+        StringBuilder sb = new StringBuilder();
+        Set<String> tests = testMap.keySet();
+        Set<String> sortedTests = new TreeSet<>(tests);
+        sb.append("<table class=\"tests-table\">");
+            sb.append("<thead>");
+                sb.append("<th>").append("Method name").append("</th>");
+                sb.append("<th>").append("Error").append("</th>");
+                sb.append("<th>").append("State").append("</th>");
+                sb.append("<th>").append("See all data").append("</th>");
+                sb.append("<th>").append("Duration").append("</th>");
+            sb.append("</thead>");
+            sb.append("</tbody>");
+            for (String clazz : sortedTests) {
+                double fullDuration = 0;
+                boolean isFail = false;
+                List<TestElement> elements = testMap.get(clazz);
+                Collections.sort(elements);
+                StringBuilder rows = new StringBuilder();
+                for (TestElement el : elements) {
+                    rows.append(el.toHTMLRow());
+                    fullDuration += el.getDuration();
+                    if (el.isIsFail()) {
+                        isFail = true;
+                    }
+                }
+                sb.append("<tr>");
+                sb.append("<td colspan=\"5\" class=\"col-class-name\"><b>")
+                        .append(clazz).append("</b> (duration: ")
+                        .append(fullDuration).append(")").append("</td>");
+                sb.append("</tr>");
+                sb.append(rows);
+            }
+            sb.append("</tbody>");
+        sb.append("</table>");
+        return sb.toString();
     }
     private Set<String> getProjectClassesAndTriggers() {
         Set<String> classes = new HashSet<>();

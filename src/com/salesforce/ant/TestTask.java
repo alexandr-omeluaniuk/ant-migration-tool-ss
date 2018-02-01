@@ -23,6 +23,7 @@
  */
 package com.salesforce.ant;
 
+import com.salesforce.report.CoverageReport;
 import com.sforce.soap.apex.RunTestsRequest;
 import com.sforce.soap.apex.RunTestsResult;
 import com.sforce.soap.apex.SoapConnection;
@@ -55,6 +56,8 @@ public class TestTask extends SFDCAntTask {
         });
         log("run [" + testCase.size() + "] tests");
         RunTestsResult testResult = makeRequest(testCase);
+        CoverageReport report = new CoverageReport(testResult, srcDir, this);
+        report.createReport();
     }
     /**
      * Run tests on server and get result.
@@ -68,7 +71,7 @@ public class TestTask extends SFDCAntTask {
         request.setAllTests(false);
         request.setClasses(testCase.toArray(new String[0]));
         try {
-            log("establish connection, please wait...");
+            log("run tests on server, please wait...");
             SoapConnection sc = getApexConnection();
             RunTestsResult result = sc.runTests(request);
             log("operation completed...");

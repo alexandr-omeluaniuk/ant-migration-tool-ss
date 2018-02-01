@@ -193,7 +193,8 @@ public class CoverageReport {
                     }
                 }
                 sb.append("<tr>");
-                sb.append("<td colspan=\"5\" class=\"col-class-name\"><b>")
+                sb.append("<td colspan=\"5\" class=\"col-class-name\"><b class=\"")
+                        .append(isFail ? "error" : "success").append("\">")
                         .append(clazz).append("</b> (duration: ")
                         .append(fullDuration).append(")").append("</td>");
                 sb.append("</tr>");

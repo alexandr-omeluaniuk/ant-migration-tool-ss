@@ -78,6 +78,7 @@ th, td {
 }
 .tests-table {
     margin-top: 20px;
+    margin-bottom: 20px;
 }
 .col-state {
     font-size: 20px;

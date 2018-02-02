@@ -23,6 +23,7 @@
  */
 package com.salesforce.report;
 
+import com.salesforce.ant.TestTask;
 import com.sforce.soap.apex.CodeCoverageResult;
 
 /**
@@ -30,8 +31,6 @@ import com.sforce.soap.apex.CodeCoverageResult;
  * @author ss
  */
 public class CoverageElement {
-    /** Coverage limit. */
-    private static final float COVERAGE_LIMIT = 75;
     /** Code coverage result. */
     private final CodeCoverageResult ccr;
     /** Coverage percent. */
@@ -65,7 +64,7 @@ public class CoverageElement {
      */
     public String toHTMLRow() {
         StringBuilder sb = new StringBuilder();
-        String percentClass = coveragePercent >= COVERAGE_LIMIT
+        String percentClass = coveragePercent >= TestTask.COVERAGE_LIMIT
                 ? "coverage-high" : "coverage-low";
         sb.append("<tr>");
         sb.append("<td>").append(ccr.getName()).append("</td>");

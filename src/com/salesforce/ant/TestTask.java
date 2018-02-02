@@ -24,6 +24,8 @@
 package com.salesforce.ant;
 
 import com.salesforce.report.CoverageReport;
+import com.sforce.soap.apex.CodeCoverageResult;
+import com.sforce.soap.apex.RunTestFailure;
 import com.sforce.soap.apex.RunTestsRequest;
 import com.sforce.soap.apex.RunTestsResult;
 import com.sforce.soap.apex.SoapConnection;
@@ -37,6 +39,8 @@ import org.apache.tools.ant.BuildException;
  * @author ss
  */
 public class TestTask extends SFDCAntTask {
+    /** Coverage limit. */
+    public static final float COVERAGE_LIMIT = 75;
     /** Project src directory. */
     private File srcDir;
     /** Test classes. */
@@ -58,6 +62,7 @@ public class TestTask extends SFDCAntTask {
         RunTestsResult testResult = makeRequest(testCase);
         CoverageReport report = new CoverageReport(testResult, srcDir, this);
         report.createReport();
+        defineTaskState(testResult);
     }
     /**
      * Run tests on server and get result.
@@ -79,6 +84,57 @@ public class TestTask extends SFDCAntTask {
             return result;
         } catch (Exception e) {
             throw new BuildException("connection problem!", e);
+        }
+    }
+    /**
+     * Define task state, fail or no.
+     * @param result test execution result.
+     * @throws BuildException tests failed.
+     */
+    private void defineTaskState(final RunTestsResult result)
+            throws BuildException {
+        // failed one or more tests
+        RunTestFailure[] failTests = result.getFailures();
+        if (failTests.length > 0) {
+            StringBuilder sb = new StringBuilder("Next tests failed:\n\n");
+            int count = 1;
+            for (RunTestFailure rtf : failTests) {
+                sb.append(count).append(". ");
+                sb.append(rtf.getName()).append(".")
+                        .append(rtf.getMethodName()).append(":\n");
+                sb.append("Error message: ").append(rtf.getMessage())
+                        .append("\n");
+                sb.append(rtf.getStackTrace()).append("\n\n");
+                count++;
+            }
+            throw new BuildException(sb.toString());
+        }
+        // fail by coverage parameters.
+        CodeCoverageResult[] coverageResult = result.getCodeCoverage();
+        StringBuilder sb = new StringBuilder(
+                "Low coverage for next tests:\n\n");
+        int count = 1;
+        boolean fail = false;
+        for (CodeCoverageResult ccr : coverageResult) {
+            int coverageLines = ccr.getNumLocations()
+                    - ccr.getNumLocationsNotCovered();
+            float coveragePercent;
+            if (ccr.getNumLocations() == 0) {
+                coveragePercent = 100f;
+            } else {
+                coveragePercent = (((float) coverageLines)
+                    / ((float) ccr.getNumLocations())) * 100;
+            }
+            if (coveragePercent < COVERAGE_LIMIT) {
+                fail = true;
+                sb.append(count).append(". ").append(ccr.getName())
+                        .append(": ");
+                sb.append(String.format("%.1f", coveragePercent)).append("%\n");
+                count++;
+            }
+        }
+        if (fail) {
+            throw new BuildException(sb.toString());
         }
     }
 // ============================= SET & GET ====================================

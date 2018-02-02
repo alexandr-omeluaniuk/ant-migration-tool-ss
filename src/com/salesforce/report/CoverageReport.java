@@ -72,10 +72,12 @@ public class CoverageReport {
             appendStyle(sb);
             sb.append(createClassesCoverageTable(classes));
             sb.append(createTestClassesTable());
+            File reportFile = new File("coverage-report.html");
             try (FileOutputStream fos = new FileOutputStream(
-                    new File("coverage-report.html"))) {
+                    reportFile)) {
                 fos.write(sb.toString().getBytes("UTF-8"));
             }
+            task.log("report saved to [" + reportFile.getAbsolutePath() + "]");
         } catch (Exception e) {
             throw new BuildException("create coverage report fail!", e);
         }

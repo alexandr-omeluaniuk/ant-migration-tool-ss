@@ -23,6 +23,7 @@
  */
 package com.salesforce.report;
 
+import com.salesforce.ant.TestTask;
 import com.sforce.soap.apex.CodeCoverageResult;
 import com.sforce.soap.apex.RunTestFailure;
 import com.sforce.soap.apex.RunTestSuccess;
@@ -33,13 +34,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.tools.ant.BuildException;
-import org.apache.tools.ant.Task;
 import org.apache.tools.ant.types.LogLevel;
 
 /**
@@ -52,7 +51,7 @@ public class CoverageReport {
     /** Project src directory. */
     private final File srcDir;
     /** Ant task. */
-    private final Task task;
+    private final TestTask task;
     /**
      * Constructor.
      * @param result result.
@@ -60,7 +59,7 @@ public class CoverageReport {
      * @param task ant task.
      */
     public CoverageReport(final RunTestsResult result, final File srcDir,
-            final Task task) {
+            final TestTask task) {
         this.result = result;
         this.srcDir = srcDir;
         this.task = task;
@@ -68,7 +67,7 @@ public class CoverageReport {
     public void createReport() throws BuildException {
         try {
             StringBuilder sb = new StringBuilder();
-            Set<String> classes = getProjectClassesAndTriggers();
+            Set<String> classes = task.getProjectClassesAndTriggers();
             appendStyle(sb);
             sb.append(createClassesCoverageTable(classes));
             sb.append(createTestClassesTable());
@@ -205,30 +204,5 @@ public class CoverageReport {
             sb.append("</tbody>");
         sb.append("</table>");
         return sb.toString();
-    }
-    private Set<String> getProjectClassesAndTriggers() {
-        Set<String> classes = new HashSet<>();
-        File classesDir = new File(srcDir, "classes");
-        if (classesDir.exists()) {
-            for (File f : classesDir.listFiles()) {
-                if (f.getName().endsWith(".cls")) {
-                    task.log("add class [" + f.getName() + "]",
-                            LogLevel.DEBUG.getLevel());
-                    classes.add(f.getName().replace(".cls", ""));
-                }
-            }
-        }
-        File triggersDir = new File(srcDir, "triggers");
-        if (triggersDir.exists()) {
-            for (File f : triggersDir.listFiles()) {
-                if (f.getName().endsWith(".trigger")) {
-                    task.log("add trigger [" + f.getName() + "]",
-                            LogLevel.DEBUG.getLevel());
-                    classes.add(f.getName().replace(".trigger", ""));
-                }
-            }
-        }
-        task.log("classes found [" + classes.size() + "]");
-        return classes;
     }
 }

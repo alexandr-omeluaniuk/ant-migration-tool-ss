@@ -31,8 +31,11 @@ import com.sforce.soap.apex.RunTestsResult;
 import com.sforce.soap.apex.SoapConnection;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.types.LogLevel;
 
 /**
  * Test apex classes.
@@ -115,7 +118,11 @@ public class TestTask extends SFDCAntTask {
                 "Low coverage for next tests:\n\n");
         int count = 1;
         boolean fail = false;
+        Set<String> classes = getProjectClassesAndTriggers();
         for (CodeCoverageResult ccr : coverageResult) {
+            if (!classes.contains(ccr.getName())) {
+                continue;
+            }
             int coverageLines = ccr.getNumLocations()
                     - ccr.getNumLocationsNotCovered();
             float coveragePercent;
@@ -136,6 +143,35 @@ public class TestTask extends SFDCAntTask {
         if (fail) {
             throw new BuildException(sb.toString());
         }
+    }
+    /**
+     * Get project classes and triggers.
+     * @return project classes and triggers names.
+     */
+    public Set<String> getProjectClassesAndTriggers() {
+        Set<String> classes = new HashSet<>();
+        File classesDir = new File(srcDir, "classes");
+        if (classesDir.exists()) {
+            for (File f : classesDir.listFiles()) {
+                if (f.getName().endsWith(".cls")) {
+                    log("add class [" + f.getName() + "]",
+                            LogLevel.DEBUG.getLevel());
+                    classes.add(f.getName().replace(".cls", ""));
+                }
+            }
+        }
+        File triggersDir = new File(srcDir, "triggers");
+        if (triggersDir.exists()) {
+            for (File f : triggersDir.listFiles()) {
+                if (f.getName().endsWith(".trigger")) {
+                    log("add trigger [" + f.getName() + "]",
+                            LogLevel.DEBUG.getLevel());
+                    classes.add(f.getName().replace(".trigger", ""));
+                }
+            }
+        }
+        log("classes found [" + classes.size() + "]");
+        return classes;
     }
 // ============================= SET & GET ====================================
     /**

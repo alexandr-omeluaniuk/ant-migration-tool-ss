@@ -26,8 +26,8 @@ THE SOFTWARE.
     Author     : ss
 */
 
-@import url("https://fonts.googleapis.com/css?family=Assistant:200,300,400,600,700,800|Quicksand:300,400,500,700");
-@import url("https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i,800,800i&amp;subset=latin-ext");
+@import url("google-font1.css");
+@import url("google-font2.css");
 
 table, th, td {
     border: 1px solid lightgrey;

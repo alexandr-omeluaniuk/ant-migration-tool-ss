@@ -46,6 +46,8 @@ import org.apache.tools.ant.types.LogLevel;
  * @author ss
  */
 public class CoverageReport {
+    /** CSS file name. */
+    private static final String CSS_FILE_NAME = "coverage-report.css";
     /** Tests result. */
     private final RunTestsResult result;
     /** Project src directory. */
@@ -68,29 +70,29 @@ public class CoverageReport {
         try {
             StringBuilder sb = new StringBuilder();
             Set<String> classes = task.getProjectClassesAndTriggers();
-            appendStyle(sb);
+            sb.append("<html>").append("<head>");
+            sb.append(createStyle());
+            sb.append("</head>").append("<body>");
             sb.append(createClassesCoverageTable(classes));
             sb.append(createTestClassesTable());
+            sb.append("</body>").append("</html>");
             File reportFile = new File("coverage-report.html");
             try (FileOutputStream fos = new FileOutputStream(
                     reportFile)) {
                 fos.write(sb.toString().getBytes("UTF-8"));
             }
+            copyResources(new String[] {CSS_FILE_NAME, "google-font1.css",
+                "google-font2.css"});
             task.log("report saved to [" + reportFile.getAbsolutePath() + "]");
         } catch (Exception e) {
             throw new BuildException("create coverage report fail!", e);
         }
     }
-    private void appendStyle(final StringBuilder sb) throws Exception {
-        try (InputStream is = getClass()
-                .getResourceAsStream("coverage-report.css")) {
-            byte[] buffer = new byte[is.available()];
-            is.read(buffer, 0, is.available());
-            String css = new String(buffer, 0, buffer.length, "UTF-8");
-            sb.append("<style>");
-            sb.append(css);
-            sb.append("</style>");
-        }
+    private StringBuilder createStyle() throws Exception {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<link rel=\"stylesheet\" type=\"text/css\" href=\""
+                + CSS_FILE_NAME + "\">");
+        return sb;
     }
     private String createClassesCoverageTable(final Set<String> classes) {
         StringBuilder sb = new StringBuilder();
@@ -204,5 +206,18 @@ public class CoverageReport {
             sb.append("</tbody>");
         sb.append("</table>");
         return sb.toString();
+    }
+    private void copyResources(final String[] resources) throws Exception {
+        for (String resource : resources) {
+            try (InputStream is = getClass()
+                    .getResourceAsStream(resource)) {
+                byte[] buffer = new byte[is.available()];
+                is.read(buffer, 0, is.available());
+                File reportRes = new File(resource);
+                try (FileOutputStream fos = new FileOutputStream(reportRes)) {
+                    fos.write(buffer);
+                }
+            }
+        }
     }
 }

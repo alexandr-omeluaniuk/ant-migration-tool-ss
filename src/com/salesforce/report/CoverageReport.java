@@ -46,8 +46,12 @@ import org.apache.tools.ant.types.LogLevel;
  * @author ss
  */
 public class CoverageReport {
+    /** Report folder name. */
+    private static final String REPORT_FOLDER_NAME = "coverage-report";
     /** CSS file name. */
     private static final String CSS_FILE_NAME = "coverage-report.css";
+    /** HTML file name. */
+    private static final String HTML_FILE_NAME = "coverage-report.html";
     /** Tests result. */
     private final RunTestsResult result;
     /** Project src directory. */
@@ -76,13 +80,14 @@ public class CoverageReport {
             sb.append(createClassesCoverageTable(classes));
             sb.append(createTestClassesTable());
             sb.append("</body>").append("</html>");
-            File reportFile = new File("coverage-report.html");
+            File folder = new File(REPORT_FOLDER_NAME);
+            folder.mkdir();
+            File reportFile = new File(folder, HTML_FILE_NAME);
             try (FileOutputStream fos = new FileOutputStream(
                     reportFile)) {
                 fos.write(sb.toString().getBytes("UTF-8"));
             }
-            copyResources(new String[] {CSS_FILE_NAME, "google-font1.css",
-                "google-font2.css"});
+            copyResources(new String[] {CSS_FILE_NAME}, folder);
             task.log("report saved to [" + reportFile.getAbsolutePath() + "]");
         } catch (Exception e) {
             throw new BuildException("create coverage report fail!", e);
@@ -207,13 +212,14 @@ public class CoverageReport {
         sb.append("</table>");
         return sb.toString();
     }
-    private void copyResources(final String[] resources) throws Exception {
+    private void copyResources(final String[] resources, final File folder)
+            throws Exception {
         for (String resource : resources) {
             try (InputStream is = getClass()
                     .getResourceAsStream(resource)) {
                 byte[] buffer = new byte[is.available()];
                 is.read(buffer, 0, is.available());
-                File reportRes = new File(resource);
+                File reportRes = new File(folder, resource);
                 try (FileOutputStream fos = new FileOutputStream(reportRes)) {
                     fos.write(buffer);
                 }

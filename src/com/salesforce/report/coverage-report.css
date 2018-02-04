@@ -26,9 +26,6 @@ THE SOFTWARE.
     Author     : ss
 */
 
-@import url("google-font1.css");
-@import url("google-font2.css");
-
 table, th, td {
     border: 1px solid lightgrey;
 }

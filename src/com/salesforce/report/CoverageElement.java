@@ -23,7 +23,6 @@
  */
 package com.salesforce.report;
 
-import com.salesforce.ant.TestTask;
 import com.sforce.soap.apex.CodeCoverageResult;
 
 /**
@@ -31,22 +30,24 @@ import com.sforce.soap.apex.CodeCoverageResult;
  * @author ss
  */
 public class CoverageElement {
-    /** Code coverage result. */
-    private final CodeCoverageResult ccr;
     /** Coverage percent. */
-    private final float coveragePercent;
+    private float coveragePercent;
     /** Coverage lines. */
-    private final int coverageLines;
+    private int coverageLines;
     /** Total lines in class. */
-    private final int totalLines;
+    private int totalLines;
     /** Class name. */
-    private final String className;
+    private String className;
+    /**
+     * Constructor for JAXB.
+     */
+    public CoverageElement() {
+    }
     /**
      * Constructor.
      * @param ccr code coverage result.
      */
     public CoverageElement(final CodeCoverageResult ccr) {
-        this.ccr = ccr;
         this.totalLines = ccr.getNumLocations();
         this.coverageLines = ccr.getNumLocations()
                 - ccr.getNumLocationsNotCovered();
@@ -60,25 +61,26 @@ public class CoverageElement {
     }
     /**
      * Represent as HTML row.
+     * @param coveragePercentLimit coverage percent limit.
      * @return HTML row.
      */
-    public String toHTMLRow() {
+    public String toHTMLRow(Integer coveragePercentLimit) {
         StringBuilder sb = new StringBuilder();
-        String percentClass = coveragePercent >= TestTask.COVERAGE_LIMIT
+        String percentClass = getCoveragePercent() >= coveragePercentLimit
                 ? "coverage-high" : "coverage-low";
         sb.append("<tr>");
-        sb.append("<td>").append(ccr.getName()).append("</td>");
+        sb.append("<td>").append(className).append("</td>");
         /*sb.append("<td class=\"state-col\">")
                 .append(fail != null ? "&#9746;" : "&#9745;")
                 .append("</td>");*/
         sb.append("<td class=\"lines-col ").append(percentClass)
                 .append("\">")
-                .append(getCoverageLines())
-                .append(" / ").append(ccr.getNumLocations())
+                .append(coverageLines)
+                .append(" / ").append(totalLines)
                 .append("</td>");
         sb.append("<td class=\"percent-col ").append(percentClass)
                 .append("\">")
-                .append(String.format("%.1f", coveragePercent))
+                .append(String.format("%.1f", getCoveragePercent()))
                 .append("</td>");
         sb.append("</tr>");
         return sb.toString();
@@ -101,5 +103,35 @@ public class CoverageElement {
      */
     public int getTotalLines() {
         return totalLines;
+    }
+    /**
+     * @return the coveragePercent
+     */
+    public float getCoveragePercent() {
+        return coveragePercent;
+    }
+    /**
+     * @param coveragePercent the coveragePercent to set
+     */
+    public void setCoveragePercent(float coveragePercent) {
+        this.coveragePercent = coveragePercent;
+    }
+    /**
+     * @param coverageLines the coverageLines to set
+     */
+    public void setCoverageLines(int coverageLines) {
+        this.coverageLines = coverageLines;
+    }
+    /**
+     * @param totalLines the totalLines to set
+     */
+    public void setTotalLines(int totalLines) {
+        this.totalLines = totalLines;
+    }
+    /**
+     * @param className the className to set
+     */
+    public void setClassName(String className) {
+        this.className = className;
     }
 }

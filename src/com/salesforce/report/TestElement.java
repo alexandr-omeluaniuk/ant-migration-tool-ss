@@ -35,6 +35,8 @@ public class TestElement implements Comparable<TestElement> {
     private static final String SIGN_FALSE = "&#9746;";
     /** True value sign. */
     private static final String SIGN_TRUE = "&#9745;";
+    /** Class name. */
+    private String className;
     /** Test class method name. */
     private String methodName;
     /** Test class method duration. */
@@ -48,11 +50,17 @@ public class TestElement implements Comparable<TestElement> {
     /** Test where enabled 'See all data'. */
     private boolean seeAllData;
     /**
+     * Constructor for JAXB.
+     */
+    public TestElement() {
+    }
+    /**
      * Constructor.
      * @param state test state.
      */
     public TestElement(final RunTestFailure state) {
         this.methodName = state.getMethodName();
+        this.className = state.getName();
         this.isFail = true;
         this.duration = state.getTime();
         this.failMessage = state.getMessage();
@@ -64,6 +72,7 @@ public class TestElement implements Comparable<TestElement> {
      * @param state test state.
      */
     public TestElement(final RunTestSuccess state) {
+        this.className = state.getName();
         this.methodName = state.getMethodName();
         this.isFail = false;
         this.duration = state.getTime();
@@ -167,5 +176,17 @@ public class TestElement implements Comparable<TestElement> {
      */
     public void setSeeAllData(boolean seeAllData) {
         this.seeAllData = seeAllData;
+    }
+    /**
+     * @return the className
+     */
+    public String getClassName() {
+        return className;
+    }
+    /**
+     * @param className the className to set
+     */
+    public void setClassName(String className) {
+        this.className = className;
     }
 }

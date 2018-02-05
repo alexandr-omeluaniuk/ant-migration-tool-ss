@@ -24,10 +24,6 @@
 package com.salesforce.report;
 
 import com.salesforce.ant.TestTask;
-import com.sforce.soap.apex.CodeCoverageResult;
-import com.sforce.soap.apex.RunTestFailure;
-import com.sforce.soap.apex.RunTestSuccess;
-import com.sforce.soap.apex.RunTestsResult;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -39,49 +35,44 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.tools.ant.BuildException;
-import org.apache.tools.ant.types.LogLevel;
 
 /**
  * Test coverage report.
  * @author ss
  */
-public class CoverageReport {
-    /** Report folder name. */
-    private static final String REPORT_FOLDER_NAME = "coverage-report";
+public class HTMLCoverageReport {
     /** CSS file name. */
     private static final String CSS_FILE_NAME = "coverage-report.css";
     /** HTML file name. */
     private static final String HTML_FILE_NAME = "coverage-report.html";
-    /** Tests result. */
-    private final RunTestsResult result;
-    /** Project src directory. */
-    private final File srcDir;
+    /** XML report. */
+    private final XMLCoverageReport xmlReport;
     /** Ant task. */
     private final TestTask task;
     /**
      * Constructor.
-     * @param result result.
-     * @param srcDir project source directory.
-     * @param task ant task.
+     * @param xmlReport
+     * @param task Ant task.
      */
-    public CoverageReport(final RunTestsResult result, final File srcDir,
+    public HTMLCoverageReport(final XMLCoverageReport xmlReport,
             final TestTask task) {
-        this.result = result;
-        this.srcDir = srcDir;
+        this.xmlReport = xmlReport;
         this.task = task;
     }
     public void createReport() throws BuildException {
         try {
             StringBuilder sb = new StringBuilder();
-            Set<String> classes = task.getProjectClassesAndTriggers();
+            
             sb.append("<html>").append("<head>");
             sb.append(createStyle());
             sb.append("</head>").append("<body>");
-            sb.append(createClassesCoverageTable(classes));
+            sb.append(createClassesCoverageTable());
             sb.append(createTestClassesTable());
             sb.append("</body>").append("</html>");
-            File folder = new File(REPORT_FOLDER_NAME);
-            folder.mkdir();
+            File folder = new File(TestTask.REPORT_FOLDER_NAME);
+            if (!folder.exists()) {
+                folder.mkdir();
+            }
             File reportFile = new File(folder, HTML_FILE_NAME);
             try (FileOutputStream fos = new FileOutputStream(
                     reportFile)) {
@@ -99,24 +90,8 @@ public class CoverageReport {
                 + CSS_FILE_NAME + "\">");
         return sb;
     }
-    private String createClassesCoverageTable(final Set<String> classes) {
+    private String createClassesCoverageTable() {
         StringBuilder sb = new StringBuilder();
-        CodeCoverageResult[] coverageResult = result.getCodeCoverage();
-        List<CoverageElement> elements = new ArrayList<>();
-        for (CodeCoverageResult ccr : coverageResult) {
-            task.log("coverage name [" + ccr.getName() + "]",
-                    LogLevel.DEBUG.getLevel());
-            if (!classes.contains(ccr.getName())) {
-                continue;
-            }
-            CoverageElement element = new CoverageElement(ccr);
-            elements.add(element);
-        }
-        Collections.sort(elements, (CoverageElement o1, CoverageElement o2) -> {
-            return o1.getClassName().compareTo(o2.getClassName());
-        });
-        int totalLines = 0;
-        int totalCoveregeLines = 0;
         StringBuilder table = new StringBuilder();
         table.append("<table>");
             table.append("<thead>");
@@ -125,30 +100,27 @@ public class CoverageReport {
                 table.append("<th>").append("Coverage percent").append("</th>");
             table.append("</thead>");
             table.append("</tbody>");
-            for (CoverageElement el : elements) {
-                table.append(el.toHTMLRow());
-                totalLines += el.getTotalLines();
-                totalCoveregeLines += el.getCoverageLines();
+            for (CoverageElement el : xmlReport.getClasses()) {
+                table.append(el.toHTMLRow(task.getCoveragePercentLimit()));
             }
             table.append("</tbody>");
         table.append("</table>");
         // total table
-        float percent = (((float) totalCoveregeLines)
-                    / ((float) totalLines)) * 100;
         StringBuilder totalTable = new StringBuilder();
         totalTable.append("<table class=\"total-table\">");
             totalTable.append("</tbody>");
             totalTable.append("<tr>");
                 totalTable.append("<td>").append("<b>Total</b> (fail: ")
-                        .append(result.getFailures().length)
+                        .append(xmlReport.getFail())
                         .append(", success: ")
-                        .append(result.getSuccesses().length)
+                        .append(xmlReport.getSuccess())
                         .append(")").append("</td>");
                 totalTable.append("<td class=\"total-col\">")
-                        .append(totalCoveregeLines).append("/")
-                        .append(totalLines).append("</td>");
+                        .append(xmlReport.getTotalCoverageLines()).append("/")
+                        .append(xmlReport.getTotalLines()).append("</td>");
                 totalTable.append("<td class=\"total-col\">")
-                        .append(String.format("%.1f", percent))
+                        .append(String.format(
+                                "%.1f", xmlReport.getTotalPercent()))
                         .append("</td>");
             totalTable.append("</tr>");
             totalTable.append("</tbody>");
@@ -158,24 +130,14 @@ public class CoverageReport {
         return sb.toString();
     }
     private String createTestClassesTable() {
-        RunTestFailure[] failTests = result.getFailures();
-        Map<String, List<TestElement>> testMap = new HashMap();
-        for (RunTestFailure fail : failTests) {
-            TestElement el = new TestElement(fail);
-            if (!testMap.containsKey(fail.getName())) {
-                testMap.put(fail.getName(), new ArrayList<>());
-            }
-            testMap.get(fail.getName()).add(el);
-        }
-        RunTestSuccess[] successTests = result.getSuccesses();
-        for (RunTestSuccess success : successTests) {
-            TestElement el = new TestElement(success);
-            if (!testMap.containsKey(success.getName())) {
-                testMap.put(success.getName(), new ArrayList<>());
-            }
-            testMap.get(success.getName()).add(el);
-        }
         StringBuilder sb = new StringBuilder();
+        Map<String, List<TestElement>> testMap = new HashMap();
+        xmlReport.getMethods().stream().forEach((te) -> {
+            if (!testMap.containsKey(te.getClassName())) {
+                testMap.put(te.getClassName(), new ArrayList<>());
+            }
+            testMap.get(te.getClassName()).add(te);
+        });
         Set<String> tests = testMap.keySet();
         Set<String> sortedTests = new TreeSet<>(tests);
         sb.append("<table class=\"tests-table\">");

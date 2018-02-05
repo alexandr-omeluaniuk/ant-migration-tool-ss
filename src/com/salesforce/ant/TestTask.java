@@ -23,7 +23,9 @@
  */
 package com.salesforce.ant;
 
-import com.salesforce.report.CoverageReport;
+import com.salesforce.report.HTMLCoverageReport;
+import com.salesforce.report.XMLCoverageReport;
+import com.salesforce.report.XMLCoverageReportProducer;
 import com.sforce.soap.apex.CodeCoverageResult;
 import com.sforce.soap.apex.RunTestFailure;
 import com.sforce.soap.apex.RunTestsRequest;
@@ -42,10 +44,12 @@ import org.apache.tools.ant.types.LogLevel;
  * @author ss
  */
 public class TestTask extends SFDCAntTask {
-    /** Coverage limit. */
-    public static final float COVERAGE_LIMIT = 75;
+    /** Report folder name. */
+    public static final String REPORT_FOLDER_NAME = "coverage-report";
     /** Project src directory. */
     private File srcDir;
+    /** Coverage percent limit per class. */
+    private Integer coveragePercentLimit;
     /** Test classes. */
     private List<RunTest> runTests = new ArrayList<>();
     @Override
@@ -54,6 +58,10 @@ public class TestTask extends SFDCAntTask {
         validateAttributes();
         log("src directory [" + getSrcDir().getAbsolutePath() + "]");
         log("test classes found [" + runTests.size() + "]");
+        if (coveragePercentLimit == null) {
+            log("coverage limit not set, default value 75%");
+            coveragePercentLimit = 75;
+        }
         List<String> testCase = new ArrayList<>();
         runTests.stream().forEach((t) -> {
             log("[" + (t.isTest() ? "+" : "x") + "] " + t.getClassName());
@@ -63,7 +71,10 @@ public class TestTask extends SFDCAntTask {
         });
         log("run [" + testCase.size() + "] tests");
         RunTestsResult testResult = makeRequest(testCase);
-        CoverageReport report = new CoverageReport(testResult, srcDir, this);
+        XMLCoverageReportProducer reportProducer =
+                new XMLCoverageReportProducer(testResult, this);
+        XMLCoverageReport xmlReport = reportProducer.createReport();
+        HTMLCoverageReport report = new HTMLCoverageReport(xmlReport, this);
         report.createReport();
         defineTaskState(testResult);
     }
@@ -132,7 +143,7 @@ public class TestTask extends SFDCAntTask {
                 coveragePercent = (((float) coverageLines)
                     / ((float) ccr.getNumLocations())) * 100;
             }
-            if (coveragePercent < COVERAGE_LIMIT) {
+            if (coveragePercent < coveragePercentLimit) {
                 fail = true;
                 sb.append(count).append(". ").append(ccr.getName())
                         .append(": ");
@@ -186,6 +197,18 @@ public class TestTask extends SFDCAntTask {
      */
     public void setSrcDir(File srcDir) {
         this.srcDir = srcDir;
+    }
+    /**
+     * @return the coveragePercentLimit
+     */
+    public Integer getCoveragePercentLimit() {
+        return coveragePercentLimit;
+    }
+    /**
+     * @param coveragePercentLimit the coveragePercentLimit to set
+     */
+    public void setCoveragePercentLimit(Integer coveragePercentLimit) {
+        this.coveragePercentLimit = coveragePercentLimit;
     }
     /**
      * @return the runTest
